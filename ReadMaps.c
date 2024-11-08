@@ -55,10 +55,8 @@ int main(int argc,char *argv[])
 
     // count the nodes
     nnodes=0UL;
-    while (getline(&line, &len, mapfile) != -1)
-    {
-        if (strncmp(line, "node", 4) == 0)
-        {
+    while (getline(&line, &len, mapfile) != -1){
+        if (strncmp(line, "node", 4) == 0){
             nnodes++;
         }
     }
@@ -79,8 +77,7 @@ int main(int argc,char *argv[])
     }
 
     // Add the data to the "node" datatype structure
-    while (getline(&line, &len, mapfile) != -1)
-    {
+    while (getline(&line, &len, mapfile) != -1){
         if (strncmp(line, "#", 1) == 0) continue;
         tmpline = line; // make a copy of line to tmpline to keep the pointer of line
         field = strsep(&tmpline, "|");
@@ -110,13 +107,13 @@ int main(int argc,char *argv[])
     start_time = clock();
     int oneway;
     unsigned long nedges = 0, origin, dest, originId, destId;
-    while (getline(&line, &len, mapfile) != -1)
-    {
+    while (getline(&line, &len, mapfile) != -1){
+        
         if (strncmp(line, "#", 1) == 0) continue;
         tmpline = line; // make a copy of line to tmpline to keep the pointer of line
         field = strsep(&tmpline, "|");
-        if (strcmp(field, "way") == 0)
-        {
+
+        if (strcmp(field, "way") == 0){
             for (int i = 0; i < 7; i++) field = strsep(&tmpline, "|"); // skip 7 fields
             if (strcmp(field, "") == 0) oneway = 0; // no oneway
             else if (strcmp(field, "oneway") == 0) oneway = 1;
@@ -126,19 +123,20 @@ int main(int argc,char *argv[])
             if (field == NULL) continue;
             originId = strtoul(field, &ptr, 10);
             origin = searchNode(originId,nodes,nnodes);
-            while(1)
-            {
+
+            while(1){
                 field = strsep(&tmpline, "|");
                 if (field == NULL) break;
                 destId = strtoul(field, &ptr, 10);
                 dest = searchNode(destId,nodes,nnodes);
-                if((origin == nnodes+1)||(dest == nnodes+1))
-                {
+                if((origin == nnodes+1)||(dest == nnodes+1)){
                     originId = destId;
                     origin = dest;
                     continue;
                 }
+
                 if(origin==dest) continue;
+
                 // Check if the edge did appear in a previous way
                 int newdest = 1;
                 for(int i=0;i<nodes[origin].nsucc;i++)
@@ -147,16 +145,12 @@ int main(int argc,char *argv[])
                         break;
                     }
                 if(newdest){
-                    if(nodes[origin].nsucc>=MAXSUCC){
-                        printf("Maximum number of successors (%d) reached in node %lu.\n",MAXSUCC,nodes[origin].id);
-                        return 5;
-                    }
+                    nodes[origin].successors = realloc(nodes[origin].successors, (nodes[origin].nsucc + 1) * sizeof(unsigned long));
                     nodes[origin].successors[nodes[origin].nsucc]=dest;
                     nodes[origin].nsucc++;
                     nedges++;
                 }
-                if(!oneway)
-                {   
+                if(!oneway){   
                     // Check if the edge did appear in a previous way
                     int newor = 1;
                     for(int i=0;i<nodes[dest].nsucc;i++)
@@ -165,10 +159,7 @@ int main(int argc,char *argv[])
                             break;
                         }
                     if(newor){
-                        if(nodes[dest].nsucc>=MAXSUCC){
-                            printf("Maximum number of successors (%d) reached in node %lu.\n",MAXSUCC,nodes[dest].id);
-                            return 5;
-                        }
+                        nodes[dest].successors = realloc(nodes[dest].successors, (nodes[dest].nsucc + 1) * sizeof(unsigned long));
                         nodes[dest].successors[nodes[dest].nsucc]=origin;
                         nodes[dest].nsucc++;
                         nedges++;
@@ -181,22 +172,17 @@ int main(int argc,char *argv[])
     }
     
     fclose(mapfile);
-    printf("Assigned %ld edges\n", nedges);
+
+    printf("Total edges added: %lu\n", nedges);
     printf("Elapsed time: %f seconds\n", (float)(clock() - start_time) / CLOCKS_PER_SEC);
 
-    // Look for a node with more than 4 successors
-    for(unsigned long i=0; i<nnodes; i++) // print nodes with more than 2 successors
-    {
-        if(nodes[i].nsucc>4){
-            index = i;
-            break;
-        }
-        /*{
-            printf("Node %lu has id=%lu and %u successors\n",i,nodes[i].id, nodes[i].nsucc);
-        }*/
+    for (unsigned long i = 0; i < nnodes; i++){
+        free(nodes[i].successors);  // Free each node's successors array
+        free(nodes[i].name);        // Free the duplicated name string
     }
-    printf("Node %lu has id=%lu and %u successors:\n",index,nodes[index].id, nodes[index].nsucc);
-    for(int i=0; i<nodes[index].nsucc; i++) printf("  Node %lu with id %lu.\n",nodes[index].successors[i], nodes[nodes[index].successors[i]].id);
-    return 0;
 
+    free(nodes);
+    free(line);
+
+    return 0;
 }
